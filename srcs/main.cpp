@@ -2,6 +2,7 @@
 #include <stdlib.h>
 #include <stddef.h>
 #include <stdio.h>
+#include <stdexcept>
 
 #define GLAD_GL_IMPLEMENTATION
 #include "glad/gl.h"
@@ -49,6 +50,39 @@ static const char* fragment_shader_text =
 "}\n";
 
 static float g_rotation_speed = 0.0f;
+
+struct GlBuffer {
+	GLuint id = 0;
+
+	~GlBuffer() {
+		if (id)
+			glDeleteBuffers(1, &id);
+	}
+};
+struct GlVertexArray {
+	GLuint id = 0;
+
+	~GlVertexArray() {
+		if (id)
+			glDeleteVertexArrays(1, &id);
+	}
+};
+struct GlProgram {
+	GLuint id = 0;
+
+	~GlProgram() {
+		if (id)
+			glDeleteProgram(id);
+	}
+};
+struct GlShader {
+	GLuint id = 0;
+
+	~GlShader() {
+		if (id)
+			glDeleteShader(id);
+	}
+};
  
 static void key_callback(GLFWwindow* window, int key, int scancode, int action, int mods)
 {
@@ -74,14 +108,15 @@ int main(void) {
 		// event listenner init
 		glfwSetKeyCallback(w.window, key_callback);
 		// load open gl
-		gladLoadGL(glfwGetProcAddress);
+		if (!gladLoadGL(glfwGetProcAddress))
+			throw std::runtime_error("Failed to initialize GLAD");
 		// swap interval between buffer and window
 		glfwSwapInterval(1);
 
 		// create gl buffer
-		GLuint vertex_buffer;
-		glGenBuffers(1, &vertex_buffer);											// generate a buffer, referenced by an ID
-		glBindBuffer(GL_ARRAY_BUFFER, vertex_buffer);								// bind buffer to type GL_ARRAY_BUFFER
+		GlBuffer vertex_buffer;
+		glGenBuffers(1, &vertex_buffer.id);											// generate a buffer, referenced by an ID
+		glBindBuffer(GL_ARRAY_BUFFER, vertex_buffer.id);							// bind buffer to type GL_ARRAY_BUFFER
 		glBufferData(GL_ARRAY_BUFFER, sizeof(vertices), vertices, GL_STATIC_DRAW);	//copies the previously defined vertex data into the buffer's memory
 	
 
@@ -90,54 +125,61 @@ int main(void) {
 			In order for OpenGL to use the shader it has to 
 			dynamically compile it at run-time from its source code. */
 		// set up vertex shader
-		const GLuint vertex_shader = glCreateShader(GL_VERTEX_SHADER);				// create a shader object, again referenced by an ID
-		glShaderSource(vertex_shader, 1, &vertex_shader_text, NULL);				// attach the shader source code to the shader object
-		glCompileShader(vertex_shader);												// compile the shader
+		GlShader vertex_shader;
+		vertex_shader.id = glCreateShader(GL_VERTEX_SHADER);						// create a shader object, again referenced by an ID
+		glShaderSource(vertex_shader.id, 1, &vertex_shader_text, NULL);				// attach the shader source code to the shader object
+		glCompileShader(vertex_shader.id);											// compile the shader
 		// set up fragment shader (The fragment shader is all about calculating the color output of pixels)
-		const GLuint fragment_shader = glCreateShader(GL_FRAGMENT_SHADER);
-		glShaderSource(fragment_shader, 1, &fragment_shader_text, NULL);
-		glCompileShader(fragment_shader);
+		GlShader fragment_shader;
+		fragment_shader.id = glCreateShader(GL_FRAGMENT_SHADER);
+		glShaderSource(fragment_shader.id, 1, &fragment_shader_text, NULL);
+		glCompileShader(fragment_shader.id);
 		// You want to check if shader compilation succeed
 		int  success;
 		char infoLog[512];
-		glGetShaderiv(vertex_shader, GL_COMPILE_STATUS, &success);
+		glGetShaderiv(vertex_shader.id, GL_COMPILE_STATUS, &success);
 		if(!success) {
-			glGetShaderInfoLog(vertex_shader, 512, NULL, infoLog);
+			glGetShaderInfoLog(vertex_shader.id, 512, NULL, infoLog);
 			std::cerr << "ERROR::SHADER::VERTEX::COMPILATION_FAILED\n" << infoLog << std::endl;
-			// free memory and return
+			throw std::runtime_error("Vertex shader compilation failed");
 		}
-		glGetShaderiv(fragment_shader, GL_COMPILE_STATUS, &success);
+		glGetShaderiv(fragment_shader.id, GL_COMPILE_STATUS, &success);
 		if(!success) {
-			glGetShaderInfoLog(fragment_shader, 512, NULL, infoLog);
+			glGetShaderInfoLog(fragment_shader.id, 512, NULL, infoLog);
 			std::cerr << "ERROR::SHADER::FRAGMENT::COMPILATION_FAILED\n" << infoLog << std::endl;
-			// free memory and return
+			throw std::runtime_error("Fragment shader compilation failed");
 		}
 		// final linked version of multiple shaders combined
-		const GLuint shaderProgram = glCreateProgram();			// creates a program and returns the ID reference
-		glAttachShader(shaderProgram, vertex_shader);			// attach the previously compiled shaders
-		glAttachShader(shaderProgram, fragment_shader);
-		glLinkProgram(shaderProgram);							// link them
+		GlProgram shaderProgram;
+		shaderProgram.id = glCreateProgram();							// creates a program and returns the ID reference
+		glAttachShader(shaderProgram.id, vertex_shader.id);				// attach the previously compiled shaders
+		glAttachShader(shaderProgram.id, fragment_shader.id);
+		glLinkProgram(shaderProgram.id);								// link them
 		// Again, you want to check if linking succeed
-		glGetProgramiv(shaderProgram, GL_LINK_STATUS, &success);
+		glGetProgramiv(shaderProgram.id, GL_LINK_STATUS, &success);
 		if(!success) {
-			glGetProgramInfoLog(shaderProgram, 512, NULL, infoLog);
+			glGetProgramInfoLog(shaderProgram.id, 512, NULL, infoLog);
 			std::cerr << "ERROR::SHADER::PROGRAM::LINKING_FAILED\n" << infoLog << std::endl;
-			// free memory and return
+			throw std::runtime_error("Shader program linking failed");
 		}
-		// delete the shader objects after linking them into a program cause we no longer need them anymore
-		glDeleteShader(vertex_shader);
-		glDeleteShader(fragment_shader);
+		// Shader objects can be deleted after successful linking.
+		glDeleteShader(vertex_shader.id);
+		vertex_shader.id = 0;
+		glDeleteShader(fragment_shader.id);
+		fragment_shader.id = 0;
 	
-		const GLint mvp_location = glGetUniformLocation(shaderProgram, "MVP");
-		const GLint vpos_location = glGetAttribLocation(shaderProgram, "vPos");
-		const GLint vcol_location = glGetAttribLocation(shaderProgram, "vCol");
+		const GLint mvp_location = glGetUniformLocation(shaderProgram.id, "MVP");
+		const GLint vpos_location = glGetAttribLocation(shaderProgram.id, "vPos");
+		const GLint vcol_location = glGetAttribLocation(shaderProgram.id, "vCol");
+		if (mvp_location < 0 || vpos_location < 0 || vcol_location < 0)
+			throw std::runtime_error("Required shader attribute/uniform not found");
 	
 		// VAO Initialization code (done once (unless your object frequently changes))
-		GLuint vertex_array;
+		GlVertexArray vertex_array;
 		// genereate VAO (vertex array obj)
-		glGenVertexArrays(1, &vertex_array);
+		glGenVertexArrays(1, &vertex_array.id);
 		// bind VAO 
-		glBindVertexArray(vertex_array);
+		glBindVertexArray(vertex_array.id);
 		// set vertex attributes pointers
 		glEnableVertexAttribArray(vpos_location);
 		glVertexAttribPointer(vpos_location, 2, GL_FLOAT, GL_FALSE,	\
@@ -162,9 +204,9 @@ int main(void) {
 			mat4x4_mul(mvp, p, m);
 
 			// draw the object
-			glUseProgram(shaderProgram);						// activate the program object created before for shaders
+			glUseProgram(shaderProgram.id);					// activate the program object created before for shaders
 			glUniformMatrix4fv(mvp_location, 1, GL_FALSE, (const GLfloat*) &mvp);
-			glBindVertexArray(vertex_array);
+			glBindVertexArray(vertex_array.id);
 			glDrawArrays(GL_TRIANGLES, 0, 3);
 
 			glfwSwapBuffers(w.window);
@@ -173,6 +215,7 @@ int main(void) {
 		}
 	} catch (std::exception &e) {
 		std::cerr << e.what() << std::endl;
+		return (1);
 	}
 	return (0);
 }
