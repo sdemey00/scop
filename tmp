@@ -1,0 +1,79 @@
+srcs/main.cpp:58:32: error: unused parameter 'error' [-Werror,-Wunused-parameter]
+static void error_callback(int error, const char* description)
+                               ^
+srcs/main.cpp:63:59: error: unused parameter 'scancode' [-Werror,-Wunused-parameter]
+static void key_callback(GLFWwindow* window, int key, int scancode, int action, int mods)
+                                                          ^
+srcs/main.cpp:63:85: error: unused parameter 'mods' [-Werror,-Wunused-parameter]
+static void key_callback(GLFWwindow* window, int key, int scancode, int action, int mods)
+                                                                                    ^
+srcs/main.cpp:70:13: error: redefinition of 'key_callback'
+static void key_callback(GLFWwindow* window, int key, int scancode, int action, int mods)
+            ^
+srcs/main.cpp:63:13: note: previous definition is here
+static void key_callback(GLFWwindow* window, int key, int scancode, int action, int mods)
+            ^
+srcs/main.cpp:82:3: error: unknown type name 'GLuint'; did you mean 'uint'?
+                GLuint vertex_buffer;
+                ^~~~~~
+                uint
+/usr/include/x86_64-linux-gnu/sys/types.h:150:22: note: 'uint' declared here
+typedef unsigned int uint;
+                     ^
+srcs/main.cpp:83:3: error: use of undeclared identifier 'glGenBuffers'
+                glGenBuffers(1, &vertex_buffer);
+                ^
+srcs/main.cpp:84:16: error: use of undeclared identifier 'GL_ARRAY_BUFFER'
+                glBindBuffer(GL_ARRAY_BUFFER, vertex_buffer);
+                             ^
+srcs/main.cpp:85:16: error: use of undeclared identifier 'GL_ARRAY_BUFFER'
+                glBufferData(GL_ARRAY_BUFFER, sizeof(vertices), vertices, GL_STATIC_DRAW);
+                             ^
+srcs/main.cpp:85:61: error: use of undeclared identifier 'GL_STATIC_DRAW'
+                glBufferData(GL_ARRAY_BUFFER, sizeof(vertices), vertices, GL_STATIC_DRAW);
+                                                                          ^
+srcs/main.cpp:87:9: error: unknown type name 'GLuint'; did you mean 'uint'?
+                const GLuint vertex_shader = glCreateShader(GL_VERTEX_SHADER);
+                      ^~~~~~
+                      uint
+/usr/include/x86_64-linux-gnu/sys/types.h:150:22: note: 'uint' declared here
+typedef unsigned int uint;
+                     ^
+srcs/main.cpp:87:47: error: use of undeclared identifier 'GL_VERTEX_SHADER'
+                const GLuint vertex_shader = glCreateShader(GL_VERTEX_SHADER);
+                                                            ^
+srcs/main.cpp:88:3: error: use of undeclared identifier 'glShaderSource'
+                glShaderSource(vertex_shader, 1, &vertex_shader_text, NULL);
+                ^
+srcs/main.cpp:89:3: error: use of undeclared identifier 'glCompileShader'
+                glCompileShader(vertex_shader);
+                ^
+srcs/main.cpp:91:9: error: unknown type name 'GLuint'; did you mean 'uint'?
+                const GLuint fragment_shader = glCreateShader(GL_FRAGMENT_SHADER);
+                      ^~~~~~
+                      uint
+/usr/include/x86_64-linux-gnu/sys/types.h:150:22: note: 'uint' declared here
+typedef unsigned int uint;
+                     ^
+srcs/main.cpp:91:49: error: use of undeclared identifier 'GL_FRAGMENT_SHADER'
+                const GLuint fragment_shader = glCreateShader(GL_FRAGMENT_SHADER);
+                                                              ^
+srcs/main.cpp:92:3: error: use of undeclared identifier 'glShaderSource'
+                glShaderSource(fragment_shader, 1, &fragment_shader_text, NULL);
+                ^
+srcs/main.cpp:93:3: error: use of undeclared identifier 'glCompileShader'
+                glCompileShader(fragment_shader);
+                ^
+srcs/main.cpp:95:9: error: unknown type name 'GLuint'; did you mean 'uint'?
+                const GLuint program = glCreateProgram();
+                      ^~~~~~
+                      uint
+/usr/include/x86_64-linux-gnu/sys/types.h:150:22: note: 'uint' declared here
+typedef unsigned int uint;
+                     ^
+srcs/main.cpp:95:26: error: use of undeclared identifier 'glCreateProgram'
+                const GLuint program = glCreateProgram();
+                                       ^
+fatal error: too many errors emitted, stopping now [-ferror-limit=]
+20 errors generated.
+make: *** [Makefile:40: build/srcs/main.o] Error 1
