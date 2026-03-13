@@ -3,6 +3,7 @@
 class Window {
 	public:
 		Window() {
+
 			if (!glfwInit())
 				throw std::runtime_error("Failed init glfw");
 			window = glfwCreateWindow(width, height, "Scop", NULL, NULL);
@@ -29,8 +30,8 @@ class Window {
 		};
 		
 		~Window() {
-			glfwDestroyWindow(window);	// free window
-			glfwTerminate();			// free pointer init
+			glfwDestroyWindow(window);	// free window allocated memory
+			glfwTerminate();			// free glfwInit allocated memory
 		};
 
 		int 		width = 1920;
