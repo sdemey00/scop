@@ -1,0 +1,10 @@
+scop
+
+build
+
+*.a
+*.o
+*.d
+
+.vscode
+*.swp
