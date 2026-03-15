@@ -1,0 +1,229 @@
+#include <iostream>
+#include <stdlib.h>
+#include <stddef.h>
+#include <stdio.h>
+#include <stdexcept>
+
+#define GLAD_GL_IMPLEMENTATION
+#include "glad/gl.h"
+#define GLFW_INCLUDE_NONE
+#include <GLFW/glfw3.h>
+
+#include "linmath.h"
+
+#include "Window.hpp"
+
+typedef struct Vertex
+{
+    vec2 pos;
+    vec3 col;
+} Vertex;
+ 
+// triangle
+static const Vertex vertices[3] =
+{
+    { { -0.6f, -0.4f }, { 1.f, 0.f, 0.f } },
+    { {  0.6f, -0.4f }, { 0.f, 1.f, 0.f } },
+    { {   0.f,  0.6f }, { 0.f, 0.f, 1.f } }
+};
+ 
+
+// Very basic shaders to compile (stored in a const C string)
+static const char* vertex_shader_text =
+"#version 330\n"
+"uniform mat4 MVP;\n"
+"in vec3 vCol;\n"
+"in vec2 vPos;\n"
+"out vec3 color;\n"
+"void main()\n"
+"{\n"
+"    gl_Position = MVP * vec4(vPos, 0.0, 1.0);\n"
+"    color = vCol;\n"
+"}\n";
+static const char* fragment_shader_text =
+"#version 330\n"
+"in vec3 color;\n"
+"out vec4 fragment;\n"
+"void main()\n"
+"{\n"
+"    fragment = vec4(color, 1.0);\n"
+"}\n";
+
+static float g_rotation_speed = 0.0f;
+
+struct GlBuffer {
+	GLuint id = 0;
+
+	GlBuffer(const GlBuffer&) = delete;
+	GlBuffer& operator=(const GlBuffer&) = delete;
+	~GlBuffer() {
+		if (id)
+			glDeleteBuffers(1, &id);
+	}
+};
+struct GlVertexArray {
+	GLuint id = 0;
+
+	GlVertexArray(const GlVertexArray&) = delete;
+	GlVertexArray& operator=(const GlVertexArray&) = delete;
+	~GlVertexArray() {
+		if (id)
+			glDeleteVertexArrays(1, &id);
+	}
+};
+struct GlProgram {
+	GLuint id = 0;
+
+	GlProgram(const GlProgram&) = delete;
+	GlProgram& operator=(const GlProgram&) = delete;
+	~GlProgram() {
+		if (id)
+			glDeleteProgram(id);
+	}
+};
+struct GlShader {
+	GLuint id = 0;
+
+	GlShader(const GlShader&) = delete;
+	GlShader& operator=(const GlShader&) = delete;
+	~GlShader() {
+		if (id)
+			glDeleteShader(id);
+	}
+};
+ 
+static void key_callback(GLFWwindow* window, int key, int scancode, int action, int mods)
+{
+	(void)scancode;(void)mods;
+	std::cout << "Pressed: " << key << std::endl;
+    if (key == GLFW_KEY_ESCAPE && action == GLFW_PRESS)
+        glfwSetWindowShouldClose(window, GLFW_TRUE);
+	else if ((key == GLFW_KEY_UP || key == GLFW_KEY_RIGHT)
+		&& (action == GLFW_PRESS || action == GLFW_REPEAT)) {
+		g_rotation_speed += 0.5f;
+		std::cout << "Rotation speed: " << g_rotation_speed << "x" << std::endl;
+	}
+	else if ((key == GLFW_KEY_DOWN || key == GLFW_KEY_LEFT)
+	&& (action == GLFW_PRESS || action == GLFW_REPEAT)) {
+		g_rotation_speed -= 0.5f;
+		std::cout << "Rotation speed: " << g_rotation_speed << "x" << std::endl;
+	}
+}
+
+int main(void) {
+	try {
+		Window w;
+		// event listenner init
+		glfwSetKeyCallback(w.window, key_callback);
+		// load open gl
+		if (!gladLoadGL(glfwGetProcAddress))
+			throw std::runtime_error("Failed to initialize GLAD");
+		// swap interval between buffer and window
+		glfwSwapInterval(1);
+
+		// create gl buffer
+		GlBuffer vertex_buffer;
+		glGenBuffers(1, &vertex_buffer.id);											// generate a buffer, referenced by an ID
+		glBindBuffer(GL_ARRAY_BUFFER, vertex_buffer.id);							// bind buffer to type GL_ARRAY_BUFFER
+		glBufferData(GL_ARRAY_BUFFER, sizeof(vertices), vertices, GL_STATIC_DRAW);	//copies the previously defined vertex data into the buffer's memory
+	
+
+		/*	Modern OpenGL requires that we at least set up a vertex 
+			and fragment shader if we want to do some rendering
+			In order for OpenGL to use the shader it has to 
+			dynamically compile it at run-time from its source code. */
+		// set up vertex shader
+		GlShader vertex_shader;
+		vertex_shader.id = glCreateShader(GL_VERTEX_SHADER);						// create a shader object, again referenced by an ID
+		glShaderSource(vertex_shader.id, 1, &vertex_shader_text, NULL);				// attach the shader source code to the shader object
+		glCompileShader(vertex_shader.id);											// compile the shader
+		// set up fragment shader (The fragment shader is all about calculating the color output of pixels)
+		GlShader fragment_shader;
+		fragment_shader.id = glCreateShader(GL_FRAGMENT_SHADER);
+		glShaderSource(fragment_shader.id, 1, &fragment_shader_text, NULL);
+		glCompileShader(fragment_shader.id);
+		// You want to check if shader compilation succeed
+		int  success;
+		char infoLog[512];
+		glGetShaderiv(vertex_shader.id, GL_COMPILE_STATUS, &success);
+		if(!success) {
+			glGetShaderInfoLog(vertex_shader.id, 512, NULL, infoLog);
+			std::cerr << "ERROR::SHADER::VERTEX::COMPILATION_FAILED\n" << infoLog << std::endl;
+			throw std::runtime_error("Vertex shader compilation failed");
+		}
+		glGetShaderiv(fragment_shader.id, GL_COMPILE_STATUS, &success);
+		if(!success) {
+			glGetShaderInfoLog(fragment_shader.id, 512, NULL, infoLog);
+			std::cerr << "ERROR::SHADER::FRAGMENT::COMPILATION_FAILED\n" << infoLog << std::endl;
+			throw std::runtime_error("Fragment shader compilation failed");
+		}
+		// final linked version of multiple shaders combined
+		GlProgram shaderProgram;
+		shaderProgram.id = glCreateProgram();							// creates a program and returns the ID reference
+		glAttachShader(shaderProgram.id, vertex_shader.id);				// attach the previously compiled shaders
+		glAttachShader(shaderProgram.id, fragment_shader.id);
+		glLinkProgram(shaderProgram.id);								// link them
+		// Again, you want to check if linking succeed
+		glGetProgramiv(shaderProgram.id, GL_LINK_STATUS, &success);
+		if(!success) {
+			glGetProgramInfoLog(shaderProgram.id, 512, NULL, infoLog);
+			std::cerr << "ERROR::SHADER::PROGRAM::LINKING_FAILED\n" << infoLog << std::endl;
+			throw std::runtime_error("Shader program linking failed");
+		}
+		// Shader objects can be deleted after successful linking.
+		glDeleteShader(vertex_shader.id);
+		vertex_shader.id = 0;
+		glDeleteShader(fragment_shader.id);
+		fragment_shader.id = 0;
+	
+		const GLint mvp_location = glGetUniformLocation(shaderProgram.id, "MVP");
+		const GLint vpos_location = glGetAttribLocation(shaderProgram.id, "vPos");
+		const GLint vcol_location = glGetAttribLocation(shaderProgram.id, "vCol");
+		if (mvp_location < 0 || vpos_location < 0 || vcol_location < 0)
+			throw std::runtime_error("Required shader attribute/uniform not found");
+	
+		// VAO Initialization code (done once (unless your object frequently changes))
+		GlVertexArray vertex_array;
+		// genereate VAO (vertex array obj)
+		glGenVertexArrays(1, &vertex_array.id);
+		// bind VAO 
+		glBindVertexArray(vertex_array.id);
+		// set vertex attributes pointers
+		glEnableVertexAttribArray(vpos_location);
+		glVertexAttribPointer(vpos_location, 2, GL_FLOAT, GL_FALSE,	\
+							sizeof(Vertex), (void*) offsetof(Vertex, pos));
+		glEnableVertexAttribArray(vcol_location);
+		glVertexAttribPointer(vcol_location, 3, GL_FLOAT, GL_FALSE,	\
+							sizeof(Vertex), (void*) offsetof(Vertex, col));
+		// drawing code follows (in render loop)
+
+		while (!glfwWindowShouldClose(w.window)) {
+			int width, height;
+			glfwGetFramebufferSize(w.window, &width, &height);
+			const float ratio = width / (float)height;
+
+			glViewport(0, 0, width, height);
+			glClear(GL_COLOR_BUFFER_BIT);
+
+			mat4x4 m, p, mvp;
+			mat4x4_identity(m);
+			mat4x4_rotate_Z(m, m, (float) glfwGetTime() * g_rotation_speed);
+			mat4x4_ortho(p, -ratio, ratio, -1.f, 1.f, 1.f, -1.f);
+			mat4x4_mul(mvp, p, m);
+
+			// draw the object
+			glUseProgram(shaderProgram.id);					// activate the program object created before for shaders
+			glUniformMatrix4fv(mvp_location, 1, GL_FALSE, (const GLfloat*) &mvp);
+			glBindVertexArray(vertex_array.id);
+			glDrawArrays(GL_TRIANGLES, 0, 3);
+
+			glfwSwapBuffers(w.window);
+
+			glfwPollEvents();					// listen for event
+		}
+	} catch (std::exception &e) {
+		std::cerr << e.what() << std::endl;
+		return (1);
+	}
+	return (0);
+}

@@ -1,7 +1,7 @@
 NAME	= scop
 
 CC		= c++
-FLAGS	= -Wall -Wextra -Werror -std=c++20 
+FLAGS	= -Wall -Wextra -Werror -g -std=c++20 
 
 BLDD	= build
 SRCD	= srcs
@@ -11,7 +11,9 @@ GLFWD		= $(LIBD)/glfw
 GLFW_BUILD	= $(GLFWD)/build
 GLFW_LIB	= $(GLFW_BUILD)/src/libglfw3.a
 
-SRCS	=	srcs/main.cpp
+SRCS	=	srcs/main.cpp \
+			srcs/Gl.cpp \
+			srcs/Mesh.cpp
 OBJS	=	$(patsubst %.cpp, $(BLDD)/%.o, $(SRCS))
 
 INCS	= -I $(SRCD) -I $(GLFWD)/include -I libs/glfw/deps
