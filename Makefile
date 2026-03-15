@@ -13,7 +13,10 @@ GLFW_LIB	= $(GLFW_BUILD)/src/libglfw3.a
 
 SRCS	=	srcs/main.cpp \
 			srcs/Gl.cpp \
-			srcs/Mesh.cpp
+			srcs/Mesh.cpp \
+			srcs/ObjLoader.cpp \
+			srcs/Camera.cpp \
+			srcs/Window.cpp
 OBJS	=	$(patsubst %.cpp, $(BLDD)/%.o, $(SRCS))
 
 INCS	= -I $(SRCD) -I $(GLFWD)/include -I libs/glfw/deps
@@ -56,4 +59,4 @@ san: FLAGS += -g -fsanitize=address,leak,undefined
 san: all
 
 valgrind: all
-	valgrind --track-fds=yes --leak-check=full --show-leak-kinds=all --suppressions=glfw_x11_full ./$(NAME)
+	valgrind --track-fds=yes --leak-check=full --show-leak-kinds=all ./$(NAME)

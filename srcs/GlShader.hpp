@@ -3,16 +3,22 @@
 #include "Gl.hpp"
 #include <stdexcept>
 
+/* Compile Shader */
+
 class GlShader {
     private:
-        GLuint _id;
+        GLuint  _id;
     public:
-        GlShader(const GlShader&) = delete;
-        GlShader& operator=(const GlShader&) = delete;
+        GlShader(const GlShader&)               = delete;
+        GlShader& operator=(const GlShader&)    = delete;
         GlShader(GlShader&& o) noexcept : _id(o._id) { o._id = 0; }
         GlShader& operator=(GlShader&& o) noexcept {
-            if (_id) glDeleteShader(_id);
-            _id = o._id; o._id = 0;
+            if (this != &o) {
+                if (_id)
+                    glDeleteShader(_id);
+                _id = o._id;
+                o._id = 0;
+            }
             return (*this);
         }
         GlShader(GLenum type, const char* src) {
@@ -36,3 +42,5 @@ class GlShader {
 
         GLuint getId() const { return (_id); }
 };
+
+// Important: OpenGl IDs cannot be copied safely -> copy desable + move enable

@@ -1,34 +1,31 @@
 #pragma once
 
+#include "Gl.hpp"
 #include <GLFW/glfw3.h>
 #include <stdexcept>
+#include <iostream>
+
+/* GLFW life cycle */
 
 class Window {
 	public:
-		Window() : Window(1920, 1080) {}
+		Window();
+		Window(int w, int h);
 		Window(const Window&) = delete;
 		Window& operator=(const Window&) = delete;
-		Window(int w, int h) {
-			if (w <= 0 || h <= 0)
-				throw std::runtime_error("Invalid window dimension");
-			width = w; height = h;
-			if (!glfwInit())
-				throw std::runtime_error("Failed to init GLFW");
-			glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 3);
-			glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 3);
-			glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
-			window = glfwCreateWindow(width, height, "Scop", NULL, NULL);
-			if (!window) {
-				glfwTerminate();
-				throw std::runtime_error("Failed creating window");
-			}
-			glfwMakeContextCurrent(window);
-		};
+		~Window();
+
+		void	setUserPointer(void* ptr);
+		void	setKeyCallback(GLFWkeyfun cb);
+		void	swapBuffers()  const;
+		void	pollEvents()   const;
+		bool	shouldClose()  const;
+		void	close();
 		
-		~Window() {
-			glfwDestroyWindow(window);
-			glfwTerminate();
-		};
+		template<typename T>
+		T* getUserPointer() const {
+			return static_cast<T*>(glfwGetWindowUserPointer(window));
+		}
 
 		int 		width = 1920;
 		int			height = 1080;

@@ -4,22 +4,32 @@
 #include <vector>
 #include <stdexcept>
 
+/* GPU geometry */
+
 struct Vertex {
     float   x, y, z;
     float   nx, ny, nz;
+    float   u, v;   // texture coordinates
 };
 
 class Mesh {
     private:
-        GLuint  _vertex_array   = 0;
-        GLuint  _vertex_buffer  = 0;
+        GLuint  _vao            = 0;
+        GLuint  _vbo            = 0;
+        GLuint  _ebo            = 0;
         GLsizei _vertexCount    = 0;
+        GLsizei _indexCount     = 0;
+        bool    _useIndices     = false;
 
-        void destroy() noexcept;
+        void    upload(const std::vector<Vertex>& vertices,
+                const std::vector<unsigned int>& indices);
+        void    destroy() noexcept;
+
     public:
-        explicit Mesh(const std::vector<Vertex>& vertices);
         Mesh(const Mesh&)               = delete;
         Mesh& operator=(const Mesh&)    = delete;
+        explicit Mesh(const std::vector<Vertex>& vertices);
+        Mesh(const std::vector<Vertex>& vertices, const std::vector<unsigned int>& indices);
         Mesh(Mesh&& o) noexcept;
         Mesh& operator=(Mesh&& o) noexcept;
         ~Mesh ();

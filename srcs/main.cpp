@@ -11,97 +11,51 @@
 #include "linmath.h"
 
 #include "Window.hpp"
-#include "GlShader.hpp"
-#include "GlProgram.hpp"
+#include "Shader.hpp"
 #include "Mesh.hpp"
+#include "ObjLoader.hpp"
+#include "Camera.hpp"
+#include "Model.hpp"
+#include "FpsCounter.hpp"
+#include "Framebuffer.hpp"
+#include "GlfwInputHandler.hpp"
 
-// TEMPORARY for testing
-// triangle
-static const Vertex vertices[3] = {
-    { -0.6f, -0.4f, 0.f,   0.f, 0.f, 1.f },
-    {  0.6f, -0.4f, 0.f,   0.f, 0.f, 1.f },
-    {  0.0f,  0.6f, 0.f,   0.f, 0.f, 1.f },
-};
-// Very basic shaders to compile (stored in a const C string)
-static const char* vertex_shader_text =
-"#version 330 core\n"
-"layout(location = 0) in vec3 aPos;\n"
-"layout(location = 1) in vec3 aNormal;\n"
-"uniform mat4 MVP;\n"
-"out vec3 color;\n"
-"void main()\n"
-"{\n"
-"    gl_Position = MVP * vec4(aPos, 1.0);\n"
-"    color = aNormal * 0.5 + 0.5;\n"
-"}\n";
-static const char* fragment_shader_text =
-"#version 330 core\n"
-"in vec3 color;\n"
-"out vec4 fragment;\n"
-"void main()\n"
-"{\n"
-"    fragment = vec4(color, 1.0);\n"
-"}\n";
-static float g_rotation_speed = 0.0f;
-
-static void key_callback(GLFWwindow* window, int key, int scancode, int action, int mods)
-{
-	(void)scancode;(void)mods;
-	std::cout << "Pressed: " << key << std::endl;
-    if (key == GLFW_KEY_ESCAPE && action == GLFW_PRESS)
-        glfwSetWindowShouldClose(window, GLFW_TRUE);
-	else if ((key == GLFW_KEY_UP || key == GLFW_KEY_RIGHT)
-		&& (action == GLFW_PRESS || action == GLFW_REPEAT)) {
-		g_rotation_speed += 0.5f;
-		std::cout << "Rotation speed: " << g_rotation_speed << "x" << std::endl;
-	}
-	else if ((key == GLFW_KEY_DOWN || key == GLFW_KEY_LEFT)
-	&& (action == GLFW_PRESS || action == GLFW_REPEAT)) {
-		g_rotation_speed -= 0.5f;
-		std::cout << "Rotation speed: " << g_rotation_speed << "x" << std::endl;
-	}
-}
-
-int main(void) {
+int main(int ac, char **av) {
 	try {
-		Window	w;
-		glfwSetKeyCallback(w.window, key_callback);
-		if (!gladLoadGL(glfwGetProcAddress))
-			throw std::runtime_error("Failed to initialize GLAD");
-		glfwSwapInterval(1);
+		if (ac < 2) {
+			throw std::runtime_error("Usage: ./scope <file.obj>");
+		}
+		Window			w;
+		Framebuffer 	fb(w.window);
+		Camera			camera(1.0472f, 0.1f, 100.f);
+		Mesh			mesh = ObjLoader::load(av[1]);
+		Shader			shader("shaders/default.vert", "shaders/default.frag");
+		Model			model;
+		FpsCounter		fps;
+		GlfwInputHandler	input(w, model, camera);
 
-		GlShader vs(GL_VERTEX_SHADER, vertex_shader_text);
-		GlShader fs(GL_FRAGMENT_SHADER, fragment_shader_text);
-		GlProgram shaderProgram(vs, fs);
-		
-		const GLint mvp_location = shaderProgram.uniform("MVP");
-		if (mvp_location < 0)
-			throw std::runtime_error("MVP uniform not found");
+		glEnable(GL_DEPTH_TEST);
+		input.setup();
 
-		std::vector<Vertex> verts(vertices, vertices + 3);
-		Mesh mesh(verts);
+		float lastTime = (float)glfwGetTime();
+		while (!w.shouldClose()) {
+			float	now = (float)glfwGetTime();
+            float	dt  = now - lastTime;
+            lastTime  = now;
 
-		while (!glfwWindowShouldClose(w.window)) {
-			int width, height;
-			glfwGetFramebufferSize(w.window, &width, &height);
-			const float ratio = width / (float)height;
-
-			glViewport(0, 0, width, height); // -> window
-			glClear(GL_COLOR_BUFFER_BIT);	// same
-
-			// math
-			mat4x4 m, p, mvp;
-			mat4x4_identity(m);
-			mat4x4_rotate_Z(m, m, (float) glfwGetTime() * g_rotation_speed);
-			mat4x4_ortho(p, -ratio, ratio, -1.f, 1.f, 1.f, -1.f);
-			mat4x4_mul(mvp, p, m);
-
-			shaderProgram.use();
-			glUniformMatrix4fv(mvp_location, 1, GL_FALSE, (const GLfloat*) &mvp);
+			fb.bind();
+			fb.clear();
+			fps.tick(w.window, dt);
+			input.poll(dt);
+			model.update(dt);
+            mat4x4 modelMat, mvp;
+            model.getMatrix(modelMat);
+            camera.getMVP(mvp, fb.aspectRatio(), modelMat);
+			shader.use();
+			shader.setMat4("MVP", mvp);
 			mesh.draw();
-
-			glfwSwapBuffers(w.window);
-			glfwPollEvents();					// listen for event
+			w.swapBuffers();
+			w.pollEvents();
 		}
 	} catch (std::exception &e) {
 		std::cerr << e.what() << std::endl;

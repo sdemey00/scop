@@ -3,16 +3,22 @@
 #include "GlShader.hpp"
 #include <stdexcept>
 
+/* link Shader*/
+
 class GlProgram {
     private:
         GLuint _id;
     public:
-        GlProgram(const GlProgram&) = delete;
-        GlProgram& operator=(const GlProgram&) = delete;
+        GlProgram(const GlProgram&)             = delete;
+        GlProgram& operator=(const GlProgram&)  = delete;
         GlProgram(GlProgram&& o) noexcept : _id(o._id) { o._id = 0; }
         GlProgram& operator=(GlProgram&& o) noexcept {
-            if (_id) glDeleteProgram(_id);
-            _id = o._id; o._id = 0;
+            if (this != &o) {
+                if (_id)
+                    glDeleteProgram(_id);
+                _id = o._id;
+                o._id = 0;
+            }
             return (*this);
         }
         GlProgram(const GlShader& vs, const GlShader& fs) {
