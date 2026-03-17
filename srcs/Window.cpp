@@ -20,7 +20,7 @@ Window::Window(int w, int h) {
     glfwMakeContextCurrent(window);
     if (!gladLoadGL(glfwGetProcAddress))
         throw std::runtime_error("Failed to initialize GLAD");
-    glfwSwapInterval(1);
+    glfwSwapInterval(0);
 }
 
 Window::~Window() {

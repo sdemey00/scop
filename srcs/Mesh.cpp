@@ -58,6 +58,7 @@ void    Mesh::upload(const std::vector<Vertex>& vertices,
             throw std::runtime_error("Mesh: empty vertex array");
          _useIndices = !indices.empty();
         _vertexCount = static_cast<GLsizei>(vertices.size());
+		// VAO
         glGenVertexArrays(1, &_vao);
         glGenBuffers(1, &_vbo);
         glBindVertexArray(_vao);

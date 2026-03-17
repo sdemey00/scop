@@ -42,5 +42,3 @@ class GlShader {
 
         GLuint getId() const { return (_id); }
 };
-
-// Important: OpenGl IDs cannot be copied safely -> copy desable + move enable

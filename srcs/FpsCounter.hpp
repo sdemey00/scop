@@ -5,7 +5,7 @@
 #include <GLFW/glfw3.h>
 #include <iostream>
 
-/* frame rate counter — prints to stdout once per second */
+/* frame rate counter */
 
 class FpsCounter {
     public:

@@ -9,7 +9,7 @@
 struct Vertex {
     float   x, y, z;
     float   nx, ny, nz;
-    float   u, v;   // texture coordinates
+    float   u, v;
 };
 
 class Mesh {

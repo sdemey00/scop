@@ -14,7 +14,7 @@
 struct ObjKey {
     int v, vt, vn;
     bool operator==(const ObjKey& o) const {
-        return v == o.v && vt == o.vt && vn == o.vn;
+        return (v == o.v && vt == o.vt && vn == o.vn);
     }
 };
 
