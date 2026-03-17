@@ -33,7 +33,6 @@ int main(int ac, char **av) {
 		Shader			shader("shaders/default.vert", "shaders/default.frag");
 		Model			model;
 		FpsCounter		fps;
-		GlTexture		text("resources/test.png");
 		GlfwInputHandler	input(w, model, camera);
 
 		glEnable(GL_DEPTH_TEST);
@@ -55,7 +54,6 @@ int main(int ac, char **av) {
             camera.getMVP(mvp, fb.aspectRatio(), modelMat);
 			shader.use();
 			shader.setMat4("MVP", mvp);
-			text.bind(0);
 			mesh.draw();
 			w.swapBuffers();
 			w.pollEvents();

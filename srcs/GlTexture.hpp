@@ -5,10 +5,6 @@
 #define STB_IMAGE_IMPLEMENTATION
 #include "../libs/stb_image.h"	// TEMPORARY
 
-struct Material {
-
-};
-
 class GlTexture {
 	private:
 		GLuint	_id;
@@ -34,7 +30,6 @@ class GlTexture {
 			glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
 			glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
 
-			// MtlLoader::load();
 			int width, height, nrChannels;
 			unsigned char *data = stbi_load(path.c_str(), &width, &height, &nrChannels, 0);
 			if (!data) {

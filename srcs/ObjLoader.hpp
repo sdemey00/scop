@@ -1,6 +1,7 @@
 #pragma once
 
 #include "Mesh.hpp"
+#include "MtlLoader.hpp"
 #include <string>
 #include <vector>
 #include <fstream>
@@ -96,7 +97,13 @@ public:
                     }
                 }
             }
-            // silently ignore: mtllib, usemtl, s, o, g — not needed for minimal render
+			else if (token == "mtllib") {
+				// load texture
+				Material m = MtlLoader::load(path);
+			}
+			else if (token == "usemtl") {
+				// use material
+			}
         }
 
         if (vertices.empty())
