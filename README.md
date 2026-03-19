@@ -1,3 +1,5 @@
+*~20h*
+
 This project is an introduction to OpenGL in C++20. The objectives are:
 
 - Learn modern C++ techniques
