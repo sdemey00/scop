@@ -14,6 +14,7 @@ GLFW_LIB	= $(GLFW_BUILD)/src/libglfw3.a
 SRCS	=	srcs/main.cpp \
 			srcs/Gl.cpp \
 			srcs/Mesh.cpp \
+			srcs/GlTexture.cpp \
 			srcs/ObjLoader.cpp \
 			srcs/Camera.cpp \
 			srcs/Window.cpp

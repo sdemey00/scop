@@ -41,4 +41,15 @@ class Shader {
             }
             glUniformMatrix4fv(loc, 1, GL_FALSE, (const GLfloat*)m);
         }
+
+        void setInt(const char* name, int value) const {
+            GLint loc = _program.uniform(name);
+            if (loc < 0)
+                return ;
+            glUniform1i(loc, value);
+        }
+
+        void setBool(const char* name, bool value) const {
+            setInt(name, value ? 1 : 0);
+        }
 };

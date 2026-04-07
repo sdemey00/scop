@@ -9,6 +9,17 @@
 #include <stdexcept>
 #include <unordered_map>
 #include <array>
+#include <optional>
+#include <filesystem>
+
+struct ObjSubmesh {
+    Mesh mesh;
+    std::optional<std::string> diffuseTexturePath;
+};
+
+struct ObjScene {
+    std::vector<ObjSubmesh> submeshes;
+};
 
 // .obj faces use 3 separate index spaces (position / texcoord / normal).
 // OpenGL uses one unified index. This key deduplicates the combination.
@@ -31,6 +42,115 @@ struct ObjKeyHash {
 
 class ObjLoader {
 public:
+    static ObjScene loadScene(const std::string& path) {
+        std::ifstream file(path);
+        if (!file.is_open())
+            throw std::runtime_error("ObjLoader: cannot open file: " + path);
+
+        std::vector<std::array<float, 3>> positions;
+        std::vector<std::array<float, 2>> texcoords;
+        std::vector<std::array<float, 3>> normals;
+
+        struct BuildBucket {
+            std::vector<Vertex> vertices;
+            std::vector<unsigned int> indices;
+            std::unordered_map<ObjKey, unsigned int, ObjKeyHash> cache;
+        };
+
+        std::unordered_map<std::string, BuildBucket> buckets;
+        std::vector<std::string> materialOrder;
+        auto ensureBucket = [&](const std::string& material) -> BuildBucket& {
+            auto it = buckets.find(material);
+            if (it == buckets.end()) {
+                materialOrder.push_back(material);
+                it = buckets.emplace(material, BuildBucket{}).first;
+            }
+            return it->second;
+        };
+
+        const std::string defaultMaterial = "__default";
+        std::string currentMaterial = defaultMaterial;
+        ensureBucket(currentMaterial);
+
+        std::string line;
+        while (std::getline(file, line)) {
+            if (line.empty() || line[0] == '#')
+                continue;
+
+            std::istringstream ss(line);
+            std::string token;
+            ss >> token;
+
+            if (token == "v") {
+                float x, y, z;
+                ss >> x >> y >> z;
+                positions.push_back({x, y, z});
+            } else if (token == "vt") {
+                float u, v;
+                ss >> u >> v;
+                texcoords.push_back({u, v});
+            } else if (token == "vn") {
+                float nx, ny, nz;
+                ss >> nx >> ny >> nz;
+                normals.push_back({nx, ny, nz});
+            } else if (token == "usemtl") {
+                ss >> currentMaterial;
+                if (currentMaterial.empty())
+                    currentMaterial = defaultMaterial;
+                ensureBucket(currentMaterial);
+            } else if (token == "f") {
+                BuildBucket& bucket = ensureBucket(currentMaterial);
+
+                std::vector<ObjKey> faceKeys;
+                std::string corner;
+                while (ss >> corner)
+                    faceKeys.push_back(parseCorner(corner));
+
+                for (size_t i = 1; i + 1 < faceKeys.size(); ++i) {
+                    for (ObjKey key : {faceKeys[0], faceKeys[i], faceKeys[i + 1]}) {
+                        auto it = bucket.cache.find(key);
+                        if (it != bucket.cache.end()) {
+                            bucket.indices.push_back(it->second);
+                        } else {
+                            Vertex vert = buildVertex(key, positions, texcoords, normals);
+                            unsigned int idx = static_cast<unsigned int>(bucket.vertices.size());
+                            bucket.vertices.push_back(vert);
+                            bucket.cache[key] = idx;
+                            bucket.indices.push_back(idx);
+                        }
+                    }
+                }
+            }
+        }
+
+        std::filesystem::path objPath(path);
+        std::filesystem::path objDir = objPath.parent_path();
+        std::unordered_map<std::string, std::string> materialToTexture = loadMaterialTextureMap(path);
+
+        ObjScene scene;
+        for (const std::string& materialName : materialOrder) {
+            auto it = buckets.find(materialName);
+            if (it == buckets.end() || it->second.vertices.empty())
+                continue;
+
+            std::optional<std::string> texturePath;
+            auto texIt = materialToTexture.find(materialName);
+            if (texIt != materialToTexture.end() && !texIt->second.empty()) {
+                std::filesystem::path texFsPath(texIt->second);
+                if (texFsPath.is_relative())
+                    texFsPath = objDir / texFsPath;
+                texturePath = texFsPath.string();
+            }
+
+            scene.submeshes.push_back(ObjSubmesh{Mesh(it->second.vertices, it->second.indices), texturePath});
+        }
+
+        if (scene.submeshes.empty())
+            throw std::runtime_error("ObjLoader: no geometry found in: " + path);
+
+        return scene;
+    }
+
     // Returns a Mesh ready to draw — throws std::runtime_error on any parse failure
     static Mesh load(const std::string& path) {
         std::ifstream file(path);
@@ -97,11 +217,7 @@ public:
                     }
                 }
             }
-			else if (token == "mtllib") {
-				// load texture
-				Material m = MtlLoader::load(path);
-			}
-			else if (token == "usemtl") {
+            else if (token == "usemtl") {
 				// use material
 			}
         }
@@ -113,6 +229,42 @@ public:
     }
 
 private:
+    static std::unordered_map<std::string, std::string>
+    loadMaterialTextureMap(const std::string& objPath) {
+        std::ifstream file(objPath);
+        if (!file.is_open())
+            throw std::runtime_error("ObjLoader: cannot open file: " + objPath);
+
+        std::filesystem::path objFsPath(objPath);
+        std::filesystem::path objDir = objFsPath.parent_path();
+        std::unordered_map<std::string, std::string> out;
+        std::string line;
+
+        while (std::getline(file, line)) {
+            if (line.empty() || line[0] == '#')
+                continue;
+
+            std::istringstream ss(line);
+            std::string token;
+            ss >> token;
+            if (token != "mtllib")
+                continue;
+
+            std::string mtllibName;
+            ss >> mtllibName;
+            if (mtllibName.empty())
+                continue;
+
+            std::filesystem::path mtlPath = objDir / mtllibName;
+            std::unordered_map<std::string, std::string> mtlData =
+                MtlLoader::loadDiffuseMapByMaterial(mtlPath.string());
+            for (const auto& pair : mtlData)
+                out[pair.first] = pair.second;
+        }
+
+        return out;
+    }
+
     // parse "v/vt/vn", "v//vn", "v/vt", or "v" — all valid .obj face corners
     static ObjKey parseCorner(const std::string& s) {
         ObjKey key{-1, -1, -1};

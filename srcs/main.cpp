@@ -3,6 +3,8 @@
 #include <stddef.h>
 #include <stdio.h>
 #include <stdexcept>
+#include <optional>
+#include <vector>
 
 #include "Gl.hpp"
 #define GLFW_INCLUDE_NONE
@@ -29,11 +31,19 @@ int main(int ac, char **av) {
 		Window			w;
 		Framebuffer 	fb(w.window);
 		Camera			camera(1.0472f, 0.1f, 100.f);
-		Mesh			mesh = ObjLoader::load(av[1]);
+		ObjScene		scene = ObjLoader::loadScene(av[1]);
 		Shader			shader("shaders/default.vert", "shaders/default.frag");
 		Model			model;
 		FpsCounter		fps;
 		GlfwInputHandler	input(w, model, camera);
+		std::vector<std::optional<GlTexture>> textures;
+
+		textures.reserve(scene.submeshes.size());
+		for (const ObjSubmesh& submesh : scene.submeshes) {
+			textures.emplace_back();
+			if (submesh.diffuseTexturePath)
+				textures.back().emplace(*submesh.diffuseTexturePath);
+		}
 
 		glEnable(GL_DEPTH_TEST);
 		input.setup();
@@ -54,7 +64,13 @@ int main(int ac, char **av) {
             camera.getMVP(mvp, fb.aspectRatio(), modelMat);
 			shader.use();
 			shader.setMat4("MVP", mvp);
-			mesh.draw();
+			for (size_t i = 0; i < scene.submeshes.size(); ++i) {
+				shader.setInt("uTexture", 0);
+				shader.setBool("uHasTexture", textures[i].has_value());
+				if (textures[i])
+					textures[i]->bind(0);
+				scene.submeshes[i].mesh.draw();
+			}
 			w.swapBuffers();
 			w.pollEvents();
 		}
